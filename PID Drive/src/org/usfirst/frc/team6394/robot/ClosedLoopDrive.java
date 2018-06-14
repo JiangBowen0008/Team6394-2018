@@ -17,8 +17,11 @@ public class ClosedLoopDrive {
 		
 		TalonSRXInit(LTalon);
 		TalonSRXInit(RTalon);
+		configPID(LTalon,0.3,0.2,0,0);
+		configPID(RTalon,0.3,0.2,0,0);
 		LVictor.follow(LTalon);
 		RVictor.follow(RTalon);
+		
 	}
 	
 	private void TalonSRXInit(TalonSRX _talon) {
@@ -33,10 +36,17 @@ public class ClosedLoopDrive {
 		_talon.configPeakOutputForward(1, Constant.kTimeoutMs);
 		_talon.configPeakOutputReverse(-1, Constant.kTimeoutMs);
 		
-		_talon.config_kF(Constant.kPIDLoopIdx, 0.1097, Constant.kTimeoutMs);
-		_talon.config_kP(Constant.kPIDLoopIdx, 0.113333, Constant.kTimeoutMs);
-		_talon.config_kI(Constant.kPIDLoopIdx, 0, Constant.kTimeoutMs);
-		_talon.config_kD(Constant.kPIDLoopIdx, 0, Constant.kTimeoutMs);
+		int absolutePosition = _talon.getSensorCollection().getPulseWidthPosition();
+		absolutePosition &= 0xFFF;
+
+		_talon.setSelectedSensorPosition(absolutePosition, Constant.kPIDLoopIdx, Constant.kTimeoutMs);
+	}
+	
+	private void configPID(TalonSRX _talon,double kF, double kP,double kI, double kD) {
+		_talon.config_kF(Constant.kPIDLoopIdx, kF, Constant.kTimeoutMs);
+		_talon.config_kP(Constant.kPIDLoopIdx, kP, Constant.kTimeoutMs);
+		_talon.config_kI(Constant.kPIDLoopIdx, kI, Constant.kTimeoutMs);
+		_talon.config_kD(Constant.kPIDLoopIdx, kD, Constant.kTimeoutMs);
 	}
 	
 	public void velDrive(double forward, double turn) {
@@ -47,25 +57,41 @@ public class ClosedLoopDrive {
 		 * velocity setpoint is in units/100ms
 		 */
 		LTalon.set(ControlMode.Velocity,
-				util.deadband(forward*Math.abs(forward)+turn*Math.abs(turn),0.1)
+				(forward*Math.abs(forward)+turn*Math.abs(turn))
 				* 500.0 * 4096 / 600);
 		
 		RTalon.set(ControlMode.Velocity,
-				util.deadband(forward*Math.abs(forward)-turn*Math.abs(turn),0.1)
+				(forward*Math.abs(forward)-turn*Math.abs(turn))
 				* 500.0 * 4096 / 600);
 	}
 	
 	public void PWMDrive(double forward, double turn) {
 		/****** PWM mode : clockwise is positive */
 		
-		LTalon.set(ControlMode.Velocity,
-				util.deadband(forward*Math.abs(forward)+turn*Math.abs(turn),0.1));
+		LTalon.set(ControlMode.PercentOutput,
+				forward*Math.abs(forward)+turn*Math.abs(turn));
 		
-		RTalon.set(ControlMode.Velocity,
-				util.deadband(forward*Math.abs(forward)-turn*Math.abs(turn),0.1));	
+		RTalon.set(ControlMode.PercentOutput,
+				forward*Math.abs(forward)-turn*Math.abs(turn));	
 	}
 	
-	public void DisDrive(double dis) {
+	public void DisDrive(double dis, double angle) {
+		/**** distance closed-loop mode */
+		
+		configPID(LTalon,0,0.2,0,0);
+		configPID(RTalon,0,0.2,0,0);
+		
+		/* One rev=4096units
+		 * Times 4096
+		 */
+		
+		LTalon.set(ControlMode.Position,
+				(dis*Math.abs(dis)+angle*Math.abs(angle))
+				* 4096);
+		
+		RTalon.set(ControlMode.Position,
+				(dis*Math.abs(dis)-angle*Math.abs(angle))
+				* 4096);
 		
 	}
 }
