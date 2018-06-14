@@ -27,7 +27,7 @@ import static java.lang.Math.*;
  */
 public class Robot extends IterativeRobot {
 
-	private Joystick m_stick = new Joystick(0);
+	private Joystick m_stick = new Joystick(5);
 	private Timer m_timer = new Timer();
 	private ClosedLoopDrive drive= new ClosedLoopDrive();
 	
@@ -76,7 +76,7 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
-		drive.velDrive(m_stick.getY(), m_stick.getX());
+		drive.velDrive(util.deadband(m_stick.getY(),0.1), util.deadband(m_stick.getX(),0.1));
 	}
 
 	/**
