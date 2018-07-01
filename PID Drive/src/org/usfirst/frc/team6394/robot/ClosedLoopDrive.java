@@ -1,10 +1,12 @@
 package org.usfirst.frc.team6394.robot;
 
+import edu.wpi.first.wpilibj.I2C.Port;
 import edu.wpi.first.wpilibj.smartdashboard.*;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.VictorSPX;
+import com.kauailabs.navx.frc.AHRS;
 
 public class ClosedLoopDrive {
 	
@@ -13,14 +15,16 @@ public class ClosedLoopDrive {
 	TalonSRX RTalon=new TalonSRX(Constant.RTalonID);
 	TalonSRX LTalon=new TalonSRX(Constant.LTalonID);
 	
+	private final AHRS ahrs = new AHRS(Port.kMXP);
+	
 	public ClosedLoopDrive() {
 		/** Initiate Closed-loop system*/
 		
 		//'E' stands for encoder
 		TalonSRXInit(LTalonE);
 		TalonSRXInit(RTalonE);
-		configPID(LTalonE,0.3,0.2,0,0.1);
-		configPID(RTalonE,0.3,0.2,0,0.1);
+		configPID(LTalonE,0.25,0.1,0,0);
+		configPID(RTalonE,0.25,0.1,0,0);
 		
 		RTalon.setInverted(true);
 		RTalonE.setInverted(true);
@@ -28,6 +32,10 @@ public class ClosedLoopDrive {
 		LTalon.follow(LTalonE);
 		RTalon.follow(RTalonE);
 		
+	}
+	
+	public AHRS getAHRS() {
+		return  ahrs;
 	}
 	
 	private void TalonSRXInit(TalonSRX _talon) {
@@ -55,14 +63,16 @@ public class ClosedLoopDrive {
 	private void DisplayInfo() {
 		/**** Displaying velocity on smart dashboard */
 		
-		SmartDashboard.putNumber("LVel",LTalonE.getSelectedSensorVelocity(Constant.kPIDLoopIdx));
-		SmartDashboard.putNumber("RVel",RTalonE.getSelectedSensorVelocity(Constant.kPIDLoopIdx));
+		SmartDashboard.putNumber("Info_LVel",LTalonE.getSelectedSensorVelocity(Constant.kPIDLoopIdx));
+		SmartDashboard.putNumber("Info_RVel",RTalonE.getSelectedSensorVelocity(Constant.kPIDLoopIdx));
 		
-		SmartDashboard.putNumber("LPWM",LTalonE.getMotorOutputPercent());
-		SmartDashboard.putNumber("RPWM",RTalonE.getMotorOutputPercent());
+		SmartDashboard.putNumber("Info_LPWM",LTalonE.getMotorOutputPercent());
+		SmartDashboard.putNumber("Info_RPWM",RTalonE.getMotorOutputPercent());
 		
-		SmartDashboard.putNumber("LDis",(double)LTalonE.getSelectedSensorPosition(Constant.kPIDLoopIdx)/4096.0);
-		SmartDashboard.putNumber("RDis",(double)RTalonE.getSelectedSensorPosition(Constant.kPIDLoopIdx)/4096.0);
+		SmartDashboard.putNumber("Info_LDis",(double)LTalonE.getSelectedSensorPosition(Constant.kPIDLoopIdx)/4096.0);
+		SmartDashboard.putNumber("Info_RDis",(double)RTalonE.getSelectedSensorPosition(Constant.kPIDLoopIdx)/4096.0);
+		
+		SmartDashboard.putNumber("Info_Angle",(double)ahrs.getAngle());
 	}
 	
 	public void velDrive(double forward, double turn) {
@@ -96,9 +106,27 @@ public class ClosedLoopDrive {
 		DisplayInfo();
 	}
 	
-	public void DisInit() {
+	public void resetSensor() {
 		LTalonE.setSelectedSensorPosition(0, Constant.kPIDLoopIdx, Constant.kTimeoutMs);
 		RTalonE.setSelectedSensorPosition(0, Constant.kPIDLoopIdx, Constant.kTimeoutMs);
+		ahrs.reset();
+		ahrs.resetDisplacement();
+	}
+	
+	public boolean Rotate(double angle,double vel) {
+		/***
+		 * angle is in degree
+		 */
+		
+		double angleLeft=angle-ahrs.getAngle();
+		if(util.isWithin(angleLeft,0,1)) {
+			return true;
+		}else {
+			velDrive(0,util.equalsign(angleLeft, vel));
+			return false;
+		}
+		
+		
 	}
 	
 	public boolean DisDrive(double dis, double angle, double speed) {
